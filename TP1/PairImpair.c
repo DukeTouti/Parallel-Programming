@@ -1,19 +1,16 @@
-#include "mpi.h"
 #include <stdio.h>
+#include "PairImpair.h"
 
-int main(int argc, char *argv[]) {
-  int rang, nb_processus;
+/*Retourne 1 si le rang est pair, 0 sinon*/
+int est_pair(int rang) {
+	return (rang % 2) == 0;
+}
 
-  MPI_Init( &argc, &argv);
-
-  MPI_Comm_rank(MPI_COMM_WORLD, &rang);
-  MPI_Comm_size(MPI_COMM_WORLD, &nb_processus);
-
-  if ( (rang % 2) == 0)
-    printf("Hello, je suis le processus pair   %d\n", rang);
-  else
-    printf("Hello, je suis le processus impair %d\n", rang);
-
-  MPI_Finalize();
-  return 0;
+/*Affiche un message different selon la parite du rang du processus*/
+void afficher_parite(int rang) {
+	if (est_pair(rang)) {
+		printf("Je suis le processus pair de rang %d\n", rang);
+	} else {
+		printf("Je suis le processus impair de rang %d\n", rang);
+	}
 }
