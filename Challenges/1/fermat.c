@@ -14,26 +14,26 @@ int main(int argc, char **argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     unsigned long long N = 1000000040000000231ULL; 
-    unsigned long long start = ..............;
-    int maxTests = ..............;
+    unsigned long long start = (unsigned long long)ceil(sqrt((double)N));
+    int maxTests = 1000000;
 
     unsigned long long localX = 0, localY = 0;
 
     
-    for (int i = ..............; i < ..............; ..............) {
-        unsigned long long x = ..............;
+    for (int i = rank ; i < maxTests ; i += size) {
+        unsigned long long x = start + i ;
         unsigned long long y2 = x * x - N;
-        if (.............. && ..............) {
-            localX = ..............;
-            localY = ..............;
+        if ( isPerfectSquare(y2) && localX == 0) {
+            localX = x ;
+            localY = (unsigned long long)sqrt((double)y2) ;
             break;  
         }
     }
 
     // Reduce results: first non-zero value
     unsigned long long globalX = 0, globalY = 0;
-    MPI_Allreduce(.............., .............., 1, MPI_UNSIGNED_LONG_LONG, .............., MPI_COMM_WORLD);
-    MPI_Allreduce(.............., .............., 1, MPI_UNSIGNED_LONG_LONG, .............., MPI_COMM_WORLD);
+    MPI_Allreduce(&localX, &globalX, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&localY, &globalY, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, MPI_COMM_WORLD);
 
     if (rank == 0) {
         if (globalX != 0)
