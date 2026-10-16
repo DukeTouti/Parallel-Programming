@@ -1,0 +1,152 @@
+===== np = 1 =====
+[processus 0] tache  1 : p=101 q=113 -> N=11413 e=3 d=7467
+[processus 0] tache  2 : p=107 q=127 -> N=13589 e=5 d=10685
+[processus 0] tache  3 : p=131 q=137 -> N=17947 e=3 d=11787
+[processus 0] tache  4 : p=139 q=149 -> N=20711 e=5 d=4085
+[processus 0] tache  5 : p=151 q=163 -> N=24613 e=7 d=6943
+[processus 0] tache  6 : p=167 q=173 -> N=28891 e=3 d=19035
+[processus 0] tache  7 : p=179 q=191 -> N=34189 e=3 d=22547
+[processus 0] tache  8 : p=193 q=197 -> N=38021 e=5 d=15053
+[processus 0] tache  9 : p=199 q=211 -> N=41989 e=13 d=6397
+[processus 0] tache 10 : p=223 q=227 -> N=50621 e=5 d=20069
+[processus 0] tache 11 : p=229 q=233 -> N=53357 e=5 d=42317
+[processus 0] tache 12 : p=239 q=241 -> N=57599 e=11 d=20771
+[processus 0] tache 13 : p=251 q=257 -> N=64507 e=3 d=42667
+[processus 0] tache 14 : p=263 q=269 -> N=70747 e=3 d=46811
+[processus 0] tache 15 : p=271 q=277 -> N=75067 e=7 d=42583
+[processus 0] tache 16 : p=281 q=283 -> N=79523 e=11 d=35891
+
+===== Resultats collectes (1 processus) =====
+Tache  p     q     N        e      d       
+1      101   113   11413    3      7467    
+2      107   127   13589    5      10685   
+3      131   137   17947    3      11787   
+4      139   149   20711    5      4085    
+5      151   163   24613    7      6943    
+6      167   173   28891    3      19035   
+7      179   191   34189    3      22547   
+8      193   197   38021    5      15053   
+9      199   211   41989    13     6397    
+10     223   227   50621    5      20069   
+11     229   233   53357    5      42317   
+12     239   241   57599    11     20771   
+13     251   257   64507    3      42667   
+14     263   269   70747    3      46811   
+15     271   277   75067    7      42583   
+16     281   283   79523    11     35891   
+
+Verification OK : 16 cles valides, identiques au sequentiel.
+===== np = 2 =====
+[processus 0] tache  1 : p=101 q=113 -> N=11413 e=3 d=7467
+[processus 0] tache  3 : p=131 q=137 -> N=17947 e=3 d=11787
+[processus 0] tache  5 : p=151 q=163 -> N=24613 e=7 d=6943
+[processus 0] tache  7 : p=179 q=191 -> N=34189 e=3 d=22547
+[processus 0] tache  9 : p=199 q=211 -> N=41989 e=13 d=6397
+[processus 0] tache 11 : p=229 q=233 -> N=53357 e=5 d=42317
+[processus 0] tache 13 : p=251 q=257 -> N=64507 e=3 d=42667
+[processus 0] tache 15 : p=271 q=277 -> N=75067 e=7 d=42583
+
+===== Resultats collectes (2 processus) =====
+Tache  p     q     N        e      d       
+1      101   113   11413    3      7467    
+2      107   127   13589    5      10685   
+3      131   137   17947    3      11787   
+4      139   149   20711    5      4085    
+5      151   163   24613    7      6943    
+6      167   173   28891    3      19035   
+7      179   191   34189    3      22547   
+8      193   197   38021    5      15053   
+9      199   211   41989    13     6397    
+10     223   227   50621    5      20069   
+11     229   233   53357    5      42317   
+12     239   241   57599    11     20771   
+13     251   257   64507    3      42667   
+14     263   269   70747    3      46811   
+15     271   277   75067    7      42583   
+16     281   283   79523    11     35891   
+
+Verification OK : 16 cles valides, identiques au sequentiel.
+[processus 1] tache  2 : p=107 q=127 -> N=13589 e=5 d=10685
+[processus 1] tache  4 : p=139 q=149 -> N=20711 e=5 d=4085
+[processus 1] tache  6 : p=167 q=173 -> N=28891 e=3 d=19035
+[processus 1] tache  8 : p=193 q=197 -> N=38021 e=5 d=15053
+[processus 1] tache 10 : p=223 q=227 -> N=50621 e=5 d=20069
+[processus 1] tache 12 : p=239 q=241 -> N=57599 e=11 d=20771
+[processus 1] tache 14 : p=263 q=269 -> N=70747 e=3 d=46811
+[processus 1] tache 16 : p=281 q=283 -> N=79523 e=11 d=35891
+===== np = 4 =====
+[processus 1] tache  2 : p=107 q=127 -> N=13589 e=5 d=10685
+[processus 1] tache  6 : p=167 q=173 -> N=28891 e=3 d=19035
+[processus 1] tache 10 : p=223 q=227 -> N=50621 e=5 d=20069
+[processus 1] tache 14 : p=263 q=269 -> N=70747 e=3 d=46811
+[processus 2] tache  3 : p=131 q=137 -> N=17947 e=3 d=11787
+[processus 2] tache  7 : p=179 q=191 -> N=34189 e=3 d=22547
+[processus 2] tache 11 : p=229 q=233 -> N=53357 e=5 d=42317
+[processus 2] tache 15 : p=271 q=277 -> N=75067 e=7 d=42583
+[processus 3] tache  4 : p=139 q=149 -> N=20711 e=5 d=4085
+[processus 3] tache  8 : p=193 q=197 -> N=38021 e=5 d=15053
+[processus 3] tache 12 : p=239 q=241 -> N=57599 e=11 d=20771
+[processus 3] tache 16 : p=281 q=283 -> N=79523 e=11 d=35891
+[processus 0] tache  1 : p=101 q=113 -> N=11413 e=3 d=7467
+[processus 0] tache  5 : p=151 q=163 -> N=24613 e=7 d=6943
+[processus 0] tache  9 : p=199 q=211 -> N=41989 e=13 d=6397
+[processus 0] tache 13 : p=251 q=257 -> N=64507 e=3 d=42667
+
+===== Resultats collectes (4 processus) =====
+Tache  p     q     N        e      d       
+1      101   113   11413    3      7467    
+2      107   127   13589    5      10685   
+3      131   137   17947    3      11787   
+4      139   149   20711    5      4085    
+5      151   163   24613    7      6943    
+6      167   173   28891    3      19035   
+7      179   191   34189    3      22547   
+8      193   197   38021    5      15053   
+9      199   211   41989    13     6397    
+10     223   227   50621    5      20069   
+11     229   233   53357    5      42317   
+12     239   241   57599    11     20771   
+13     251   257   64507    3      42667   
+14     263   269   70747    3      46811   
+15     271   277   75067    7      42583   
+16     281   283   79523    11     35891   
+
+Verification OK : 16 cles valides, identiques au sequentiel.
+===== np = 8 =====
+[processus 2] tache  3 : p=131 q=137 -> N=17947 e=3 d=11787
+[processus 2] tache 11 : p=229 q=233 -> N=53357 e=5 d=42317
+[processus 4] tache  5 : p=151 q=163 -> N=24613 e=7 d=6943
+[processus 4] tache 13 : p=251 q=257 -> N=64507 e=3 d=42667
+[processus 7] tache  8 : p=193 q=197 -> N=38021 e=5 d=15053
+[processus 7] tache 16 : p=281 q=283 -> N=79523 e=11 d=35891
+[processus 0] tache  1 : p=101 q=113 -> N=11413 e=3 d=7467
+[processus 0] tache  9 : p=199 q=211 -> N=41989 e=13 d=6397
+[processus 1] tache  2 : p=107 q=127 -> N=13589 e=5 d=10685
+[processus 1] tache 10 : p=223 q=227 -> N=50621 e=5 d=20069
+[processus 3] tache  4 : p=139 q=149 -> N=20711 e=5 d=4085
+[processus 3] tache 12 : p=239 q=241 -> N=57599 e=11 d=20771
+[processus 5] tache  6 : p=167 q=173 -> N=28891 e=3 d=19035
+[processus 5] tache 14 : p=263 q=269 -> N=70747 e=3 d=46811
+[processus 6] tache  7 : p=179 q=191 -> N=34189 e=3 d=22547
+[processus 6] tache 15 : p=271 q=277 -> N=75067 e=7 d=42583
+
+===== Resultats collectes (8 processus) =====
+Tache  p     q     N        e      d       
+1      101   113   11413    3      7467    
+2      107   127   13589    5      10685   
+3      131   137   17947    3      11787   
+4      139   149   20711    5      4085    
+5      151   163   24613    7      6943    
+6      167   173   28891    3      19035   
+7      179   191   34189    3      22547   
+8      193   197   38021    5      15053   
+9      199   211   41989    13     6397    
+10     223   227   50621    5      20069   
+11     229   233   53357    5      42317   
+12     239   241   57599    11     20771   
+13     251   257   64507    3      42667   
+14     263   269   70747    3      46811   
+15     271   277   75067    7      42583   
+16     281   283   79523    11     35891   
+
+Verification OK : 16 cles valides, identiques au sequentiel.
