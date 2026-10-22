@@ -1,0 +1,62 @@
+===== np = 2 =====
+===== RSA texte parallele (2 processus, version standard) =====
+Cles : N=79523 e=11 d=35891
+Longueur du message : 5 caractere(s)
+
+Repartition :
+  processus 0 : 3 caractere(s) [0..2]
+  processus 1 : 2 caractere(s) [3..4]
+
+Texte original : Salut
+Valeurs chiffrees : 549 20948 49079 45287 5720
+Texte dechiffre : Salut
+
+Verification OK : le texte dechiffre est identique a l'original.
+
+Temps (ms) :
+  chiffrement   : total = 0.0205 | calcul (max processus) = 0.0007 | communication ~ 0.0197
+  dechiffrement : total = 0.0037 | calcul (max processus) = 0.0011 | communication ~ 0.0026
+===== np = 4 =====
+===== RSA texte parallele (4 processus, version standard) =====
+Cles : N=79523 e=11 d=35891
+Longueur du message : 5 caractere(s)
+
+Repartition :
+  processus 0 : 2 caractere(s) [0..1]
+  processus 1 : 1 caractere(s) [2..2]
+  processus 2 : 1 caractere(s) [3..3]
+  processus 3 : 1 caractere(s) [4..4]
+
+Texte original : Salut
+Valeurs chiffrees : 549 20948 49079 45287 5720
+Texte dechiffre : Salut
+
+Verification OK : le texte dechiffre est identique a l'original.
+
+Temps (ms) :
+  chiffrement   : total = 0.0309 | calcul (max processus) = 0.0005 | communication ~ 0.0305
+  dechiffrement : total = 0.0061 | calcul (max processus) = 0.0006 | communication ~ 0.0055
+===== np = 8 =====
+===== RSA texte parallele (8 processus, version standard) =====
+Cles : N=79523 e=11 d=35891
+Longueur du message : 5 caractere(s)
+
+Repartition :
+  processus 0 : 1 caractere(s) [0..0]
+  processus 1 : 1 caractere(s) [1..1]
+  processus 2 : 1 caractere(s) [2..2]
+  processus 3 : 1 caractere(s) [3..3]
+  processus 4 : 1 caractere(s) [4..4]
+  processus 5 : 0 caractere(s)
+  processus 6 : 0 caractere(s)
+  processus 7 : 0 caractere(s)
+
+Texte original : Salut
+Valeurs chiffrees : 549 20948 49079 45287 5720
+Texte dechiffre : Salut
+
+Verification OK : le texte dechiffre est identique a l'original.
+
+Temps (ms) :
+  chiffrement   : total = 0.0365 | calcul (max processus) = 0.0005 | communication ~ 0.0361
+  dechiffrement : total = 0.0094 | calcul (max processus) = 0.0005 | communication ~ 0.0088

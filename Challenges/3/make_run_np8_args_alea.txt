@@ -1,0 +1,24 @@
+mpirun --oversubscribe -np 8 ./rsa_text_mpi "Bonjour le monde" alea
+===== RSA texte parallele (8 processus, variante alea) =====
+Cles : N=79523 e=11 d=35891
+Longueur du message : 16 caractere(s)
+
+Repartition :
+  processus 0 : 2 caractere(s) [0..1]
+  processus 1 : 2 caractere(s) [2..3]
+  processus 2 : 2 caractere(s) [4..5]
+  processus 3 : 2 caractere(s) [6..7]
+  processus 4 : 2 caractere(s) [8..9]
+  processus 5 : 2 caractere(s) [10..11]
+  processus 6 : 2 caractere(s) [12..13]
+  processus 7 : 2 caractere(s) [14..15]
+
+Texte original : Bonjour le monde
+Valeurs chiffrees : 12902 62249 17359 9192 67115 60441 38794 16091 18499 53697 26910 27001 9655 40504 64867 952
+Texte dechiffre : Bonjour le monde
+
+Verification OK : le texte dechiffre est identique a l'original.
+
+Temps (ms) :
+  chiffrement   : total = 0.0812 | calcul (max processus) = 0.0009 | communication ~ 0.0803
+  dechiffrement : total = 0.0100 | calcul (max processus) = 0.0008 | communication ~ 0.0091
