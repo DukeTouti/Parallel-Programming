@@ -4,8 +4,20 @@
 #include <sys/time.h>
 
 // a = b * c
- __global__ void mmult(float *a, float *b, float *c, int N)
+// un thread calcule a[i + j*N] : i = blockIdx.x*blockDim.x + threadIdx.x, j = blockIdx.y
+__global__ void mmult(float *a, float *b, float *c, int N)
 {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y;
+    int k;
+
+    if (i < N && j < N)
+    {
+        float s = a[i + j*N];
+        for (k = 0; k < N; k++)
+            s += b[i + k*N] * c[k + j*N];
+        a[i + j*N] = s;
+    }
 }
 
 // a[][] = 0, b[][] = 1; c[][] = 1
@@ -38,31 +50,39 @@ void mprint(float *a, int N, int M)
 
 int main(int argc, char* argv[])
 {
-    long int N = 4096;
+    int N = 4096;
     int T = 32;
     
-    if (argc == 2)
+    if (argc > 1)
         T = atoi(argv[1]);
+    if (argc > 2)
+        N = atoi(argv[2]);
+
+    if (N % T != 0)
+    {
+        fprintf(stderr, "N=%d doit etre divisible par T=%d\n", N, T);
+        return EXIT_FAILURE;
+    }
 
     cudaEvent_t start, stop;
     float time, flop, gflops;
     
-    float *a = (float *)malloc(N*N*sizeof(float));
-    float *b = (float *)malloc(N*N*sizeof(float));
-    float *c = (float *)malloc(N*N*sizeof(float));
+    float *a = (float *)malloc((size_t)N*N*sizeof(float));
+    float *b = (float *)malloc((size_t)N*N*sizeof(float));
+    float *c = (float *)malloc((size_t)N*N*sizeof(float));
 
     minit(a, b, c, N);
     
     // allocate device memory
     float *devPtrA, *devPtrB, *devPtrC;
-    cudaMalloc((void**)&devPtrA, N*N*sizeof(float)); 
-    cudaMalloc((void**)&devPtrB, N*N*sizeof(float)); 
-    cudaMalloc((void**)&devPtrC, N*N*sizeof(float)); 
+    cudaMalloc((void**)&devPtrA, (size_t)N*N*sizeof(float)); 
+    cudaMalloc((void**)&devPtrB, (size_t)N*N*sizeof(float)); 
+    cudaMalloc((void**)&devPtrC, (size_t)N*N*sizeof(float)); 
 
-    // copy input arrays to the device meory    
-    cudaMemcpy(devPtrB, b, N*N*sizeof(float),  cudaMemcpyHostToDevice); 
-    cudaMemcpy(devPtrC, c, N*N*sizeof(float),  cudaMemcpyHostToDevice); 
-    cudaMemset(devPtrA, 0, N*N*sizeof(float));
+    // copy input arrays to the device memory
+    cudaMemcpy(devPtrB, b, (size_t)N*N*sizeof(float),  cudaMemcpyHostToDevice); 
+    cudaMemcpy(devPtrC, c, (size_t)N*N*sizeof(float),  cudaMemcpyHostToDevice); 
+    cudaMemset(devPtrA, 0, (size_t)N*N*sizeof(float));
 
     // define grid and thread block sizes
     dim3 threads(T);
@@ -84,9 +104,11 @@ int main(int argc, char* argv[])
     cudaEventSynchronize(stop);
 
     // copy results to host
-    cudaMemcpy(a, devPtrA, N*N*sizeof(float),  cudaMemcpyDeviceToHost); 
+    cudaMemcpy(a, devPtrA, (size_t)N*N*sizeof(float),  cudaMemcpyDeviceToHost); 
 
     mprint(a, N, 5);
+    printf("a[0] = %.2f (attendu : %d)  %s\n", a[0], N,
+           a[0] == (float)N ? "OK" : "ECHEC");
     
     // free device memory
     cudaFree(devPtrA); 
@@ -102,11 +124,9 @@ int main(int argc, char* argv[])
     cudaEventDestroy(stop);
 
     time /= 1000.0f;  // convert from milliseconds to seconds
-    flop = N*N*N*2.0f;
+    flop = 2.0f * N * N * N;
     gflops = flop / time / 1E9;
     printf("sec = %.2f   GFLOPS = %.3f\n", time, gflops);
 
     return EXIT_SUCCESS;
 }
-
-
