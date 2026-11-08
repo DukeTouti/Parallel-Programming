@@ -9,16 +9,16 @@ __device__ int isPerfectSquare(unsigned long long n) {
 }
 
 
-__global__ void fermatKernel(unsigned long long ......,
-                             unsigned long long ......,
-                             unsigned long long ......,
-                             unsigned long long ......)
+__global__ void fermatKernel(unsigned long long N,
+                             unsigned long long start,
+                             unsigned long long *resX,
+                             unsigned long long resY)
 {
-    unsigned long long tid = ........................;
-    unsigned long long x = ........................;
+    unsigned long long tid = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned long long x = start + tid;
 
     unsigned long long y2 = x * x - N;
-    if (............ && ............) {
+    if (isPerfectSquare(y2) && *resX == 0) {
       
         if (atomicCAS(resX, 0ULL, x) == 0ULL) {
             *resY = (unsigned long long)sqrt((double)y2);
@@ -28,7 +28,7 @@ __global__ void fermatKernel(unsigned long long ......,
 
 int main() {
     unsigned long long N = 1000036000099;  
-    unsigned long long start = ..................;
+    unsigned long long start = (unsigned long long)ceil(sqrt((double)N));
 
     unsigned long long hX = 0, hY = 0;
     unsigned long long *dX, *dY;
@@ -37,19 +37,19 @@ int main() {
     cudaMalloc(&dY, sizeof(unsigned long long));
     cudaMemset(dX, 0, sizeof(unsigned long long));
 
-     int threadsPerBlock = ............;
+     int threadsPerBlock = 256;
 
-      int maxTests = ............;
-    int blocks = ............;
+      int maxTests = 1000000;
+    int blocks = (maxTests + threadsPerBlock - 1) / threadsPerBlock;
 
-    fermatKernel<<<blocks, threadsPerBlock>>>(......, ......, ......, ......);
+    fermatKernel<<<blocks, threadsPerBlock>>>(N, start, dX, dY);
     
     cudaDeviceSynchronize();
 
     cudaMemcpy(&hX, dX, sizeof(unsigned long long), cudaMemcpyDeviceToHost);
     cudaMemcpy(&hY, dY, sizeof(unsigned long long), cudaMemcpyDeviceToHost);
 
-    if (............) {
+    if (hX != 0) {
         printf("Factors: %llu and %llu\n", hX - hY, hX + hY);
     } else {
         printf("No factors found in range\n");
