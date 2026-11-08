@@ -1,0 +1,13 @@
+# Venv (créé par python -m venv .)
+bin/
+lib/
+lib64/
+include/
+share/
+pyvenv.cfg
+
+# Archives
+*.tar.xz
+*.tar.gz
+*.zip
+.ipynb_checkpoints/
