@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 #include "jeu_de_test.h"
 
 int main(void) {
@@ -12,8 +11,6 @@ int main(void) {
 	int t;
 
 	setvbuf(stdout, NULL, _IONBF, 0);
-	srand(GRAINE);
-	mkdir(DOSSIER_DONNEES, 0755); // sequences generees et resultats intermediaires
 
 	csv = ouvrir_csv();
 	if (NULL == csv) {

@@ -53,66 +53,56 @@ FILE *ouvrir_csv(void) {
 	return csv;
 }
 
-/* ---------- Donnees ---------- */
+/* ---------- Sequences ---------- */
 
-/*Genere une sequence aleatoire de n symboles de ALPHABET et l'ecrit dans un fichier*/
-static char *generer_et_ecrire(int n, const char *chemin) {
-	char *sequence = malloc((size_t)n + 1);
+/*Meme generation que MPI/sequences.c et CUDA/sequences.cu : srand(GRAINE), X puis Y*/
+static char *generer_sequence(int longueur) {
+	char *sequence = malloc((size_t)longueur + 1);
 	int taille_alphabet = (int)strlen(ALPHABET);
-	FILE *f;
 	int i;
 
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < longueur; i++) {
 		sequence[i] = ALPHABET[rand() % taille_alphabet];
 	}
-	sequence[n] = '\0';
-
-	f = fopen(chemin, "w");
-	if (NULL == f) {
-		perror(chemin);
-		free(sequence);
-		return NULL;
-	}
-	fprintf(f, "%s\n", sequence);
-	fclose(f);
+	sequence[longueur] = '\0';
 
 	return sequence;
 }
 
 /* ---------- Executions ---------- */
 
-/*Lance une commande (MPI ou CUDA) puis lit FICHIER_RESULTAT. Renvoie 1 si tout s'est bien passe.*/
-static int executer(const char *commande, resultat_t *r) {
-	FILE *f;
+/*Lance une commande (MPI ou CUDA en mode csv) et lit sa ligne de resultat :
+  longueur,t_communication,t_phase1,t_phase2,t_total,LCS
+  La LCS est renvoyee dans *S (allouee). Renvoie 1 si tout s'est bien passe.*/
+static int executer(const char *commande, resultat_t *r, char **S) {
+	FILE *sortie = popen(commande, "r");
+	char *ligne = NULL;
+	size_t taille_ligne = 0;
+	ssize_t lus;
+	int debut_lcs = 0;
+	int ok = 0;
 
-	remove(FICHIER_RESULTAT);
-	if (0 != system(commande)) {
+	if (NULL == sortie) {
+		perror(commande);
+		return 0;
+	}
+
+	lus = getline(&ligne, &taille_ligne, sortie);
+	if (lus > 0 && 5 == sscanf(ligne, "%d,%lf,%lf,%lf,%lf,%n", &r->longueur, &r->t_communication,
+			&r->t_phase1, &r->t_phase2, &r->t_total, &debut_lcs) && debut_lcs > 0) {
+		ligne[strcspn(ligne, "\n")] = '\0'; // retire le retour a la ligne
+		*S = strdup(&ligne[debut_lcs]);
+		ok = 1;
+	}
+
+	free(ligne);
+	if (0 != pclose(sortie)) {
+		ok = 0;
+	}
+	if (!ok) {
 		fprintf(stderr, "Echec de la commande : %s\n", commande);
-		return 0;
 	}
-
-	f = fopen(FICHIER_RESULTAT, "r");
-	if (NULL == f) {
-		perror(FICHIER_RESULTAT);
-		return 0;
-	}
-
-	if (5 != fscanf(f, "%d %lf %lf %lf %lf", &r->longueur, &r->t_communication, &r->t_phase1, &r->t_phase2, &r->t_total)) {
-		fclose(f);
-		return 0;
-	}
-	fgetc(f); // fin de la premiere ligne
-
-	r->S = malloc((size_t)r->longueur + 1);
-	if ((size_t)r->longueur != fread(r->S, 1, (size_t)r->longueur, f)) {
-		free(r->S);
-		fclose(f);
-		return 0;
-	}
-	r->S[r->longueur] = '\0';
-
-	fclose(f);
-	return 1;
+	return ok;
 }
 
 /*Execute NB_REPETITIONS fois la commande, garde la mediane de chaque temps et verifie
@@ -123,20 +113,22 @@ static int executer_et_verifier(const char *commande, const char *X, const char 
 	int correct = 0;
 	int rep;
 
-	memset(med, 0, sizeof(*med)); // en cas d'echec d'une execution, la ligne sortira en ECHEC avec des zeros
+	memset(med, 0, sizeof(*med)); // en cas d'echec, la ligne sortira en ECHEC avec des zeros
 
 	for (rep = 0; rep < NB_REPETITIONS; rep++) {
 		resultat_t r;
+		char *S = NULL;
 
-		if (!executer(commande, &r)) {
+		if (!executer(commande, &r, &S)) {
 			return 0;
 		}
 
 		if (0 == rep) { // verification sur la premiere execution
 			correct = (r.longueur == longueur_ref)
-				&& (0 == strcmp(r.S, S_ref))
-				&& est_sous_sequence(r.S, r.longueur, X, n)
-				&& est_sous_sequence(r.S, r.longueur, Y, n);
+				&& ((int)strlen(S) == r.longueur)
+				&& (0 == strcmp(S, S_ref))
+				&& est_sous_sequence(S, r.longueur, X, n)
+				&& est_sous_sequence(S, r.longueur, Y, n);
 			med->longueur = r.longueur;
 		}
 
@@ -144,7 +136,7 @@ static int executer_et_verifier(const char *commande, const char *X, const char 
 		t_phase1[rep] = r.t_phase1;
 		t_phase2[rep] = r.t_phase2;
 		t_total[rep] = r.t_total;
-		free(r.S);
+		free(S);
 	}
 
 	med->t_communication = mediane(t_communication, NB_REPETITIONS);
@@ -157,7 +149,7 @@ static int executer_et_verifier(const char *commande, const char *X, const char 
 /*Affiche une ligne de resultat et l'ajoute au CSV*/
 static void enregistrer(FILE *csv, const char *version, const char *configuration, int n, int nprocs,
 	double t_seq, const resultat_t *r, int correct) {
-	double acceleration = t_seq / r->t_total;
+	double acceleration = (r->t_total > 0.0) ? t_seq / r->t_total : 0.0;
 
 	printf("n = %6d | %-4s %-14s | seq = %9.5f s | par = %9.5f s (ph1 %.5f, ph2 %.5f, comm %.5f) | acc = %7.2fx | %s\n",
 		n, version, configuration, t_seq, r->t_total, r->t_phase1, r->t_phase2, r->t_communication,
@@ -178,18 +170,14 @@ void tester_taille(int n, FILE *csv, int *nb_tests, int *nb_echecs) {
 	int longueur_ref = 0;
 	double essais_seq[NB_REPETITIONS];
 	double t_seq;
-	char commande[512];
+	char commande[256];
 	char configuration[64];
 	int rep, p, c;
 
-	/* ---------- Donnees aleatoires ---------- */
-	X = generer_et_ecrire(n, FICHIER_X);
-	Y = generer_et_ecrire(n, FICHIER_Y);
-	if (NULL == X || NULL == Y) {
-		free(X);
-		free(Y);
-		return;
-	}
+	/* ---------- Memes sequences que MPI et CUDA ---------- */
+	srand(GRAINE);
+	X = generer_sequence(n);
+	Y = generer_sequence(n);
 
 	/* ---------- Reference sequentielle (code du sujet) ---------- */
 	S_ref = malloc((size_t)n + 1);
@@ -217,8 +205,8 @@ void tester_taille(int n, FILE *csv, int *nb_tests, int *nb_echecs) {
 		resultat_t r;
 		int correct;
 
-		snprintf(commande, sizeof(commande), "%s -np %d %s %s %s %d %s > /dev/null",
-			MPIRUN, nprocs_a_tester[p], EXEC_MPI, FICHIER_X, FICHIER_Y, HAUTEUR_BLOC, FICHIER_RESULTAT);
+		snprintf(commande, sizeof(commande), "%s -np %d %s %d %d %d csv",
+			MPIRUN, nprocs_a_tester[p], EXEC_MPI, n, n, HAUTEUR_BLOC);
 		snprintf(configuration, sizeof(configuration), "P=%d", nprocs_a_tester[p]);
 
 		correct = executer_et_verifier(commande, X, Y, n, S_ref, longueur_ref, &r);
@@ -234,8 +222,8 @@ void tester_taille(int n, FILE *csv, int *nb_tests, int *nb_echecs) {
 		resultat_t r;
 		int correct;
 
-		snprintf(commande, sizeof(commande), "%s %s %s %s %d %s > /dev/null",
-			EXEC_CUDA, FICHIER_X, FICHIER_Y, methodes_cuda[c], parametres_cuda[c], FICHIER_RESULTAT);
+		snprintf(commande, sizeof(commande), "%s %d %d %s %d csv",
+			EXEC_CUDA, n, n, methodes_cuda[c], parametres_cuda[c]);
 		snprintf(configuration, sizeof(configuration), "%s %d", methodes_cuda[c], parametres_cuda[c]);
 
 		correct = executer_et_verifier(commande, X, Y, n, S_ref, longueur_ref, &r);
