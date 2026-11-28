@@ -1,0 +1,720 @@
+diff -ruN a/CUDA/main.cu b/CUDA/main.cu
+--- a/CUDA/main.cu	2026-11-28 17:39:38.504521660 +0000
++++ b/CUDA/main.cu	2026-11-28 17:39:38.506448850 +0000
+@@ -4,63 +4,32 @@
+ #include "lcs_cuda.cuh"
+ #include "sequences.cuh"
+ 
+-/* Usage :
+-   ./bin/lcs_cuda fichierX fichierY [tuiles|diagonales] [T] [fichier_resultat]
+-   ./bin/lcs_cuda m n [tuiles|diagonales] [T] [fichier_resultat]   (sequences aleatoires)
+-   T : cote de la tuile (tuiles) ou threads par bloc (diagonales)
+-   fichier_resultat (utilise par le jeu de test) :
+-     ligne 1 : longueur t_transfert t_phase1 t_phase2 t_total
+-     ligne 2 : la LCS */
++/* Usage : ./lcs_cuda m n [tuiles|diagonales] [T] [csv]
++   - m, n : longueurs des sequences X et Y, generees aleatoirement
++   - T    : cote de la tuile (tuiles, defaut 32) ou threads par bloc (diagonales, defaut 256)
++   - csv  : n'affiche qu'une ligne (pour le jeu de test) :
++            longueur,t_transfert,t_phase1,t_phase2,t_total,LCS */
+ 
+-#define GRAINE 42
+ #define AFFICHAGE_MAX 80
+ 
+-/*Charge X et Y depuis deux fichiers, ou les genere si les arguments sont des tailles*/
+-static int charger_sequences(const char *arg_X, const char *arg_Y, char **X, int *m, char **Y, int *n) {
+-	if (est_entier(arg_X) && est_entier(arg_Y)) {
+-		*m = atoi(arg_X);
+-		*n = atoi(arg_Y);
+-		srand(GRAINE);
+-		*X = generer_sequence(*m);
+-		*Y = generer_sequence(*n);
+-	} else {
+-		*X = lire_sequence(arg_X, m);
+-		*Y = lire_sequence(arg_Y, n);
+-	}
+-
+-	return (NULL != *X && NULL != *Y);
+-}
+-
+-/*Ecrit les temps et la LCS dans le fichier resultat lu par le jeu de test*/
+-static void ecrire_resultat(const char *chemin, int longueur, const char *S, const temps_cuda_t *temps) {
+-	FILE *f = fopen(chemin, "w");
+-
+-	if (NULL == f) {
+-		perror(chemin);
+-		return;
+-	}
+-
+-	fprintf(f, "%d %.9f %.9f %.9f %.9f\n", longueur, temps->t_transfert, temps->t_phase1, temps->t_phase2, temps->t_total);
+-	fprintf(f, "%s\n", S);
+-	fclose(f);
+-}
+-
+ int main(int argc, char **argv) {
+ 	char *X = NULL;
+ 	char *Y = NULL;
+ 	char *S = NULL;
+-	int m = 0;
+-	int n = 0;
++	int m, n;
+ 	int methode = METHODE_TUILES;
+ 	int T;
++	int mode_csv;
+ 	int longueur;
+ 	temps_cuda_t temps;
+ 
+ 	if (argc < 3) {
+-		fprintf(stderr, "Usage : %s fichierX|m fichierY|n [tuiles|diagonales] [T] [fichier_resultat]\n", argv[0]);
++		fprintf(stderr, "Usage : %s m n [tuiles|diagonales] [T] [csv]\n", argv[0]);
+ 		return 1;
+ 	}
+ 
++	m = atoi(argv[1]);
++	n = atoi(argv[2]);
+ 	if (argc > 3 && 0 == strcmp(argv[3], "diagonales")) {
+ 		methode = METHODE_DIAGONALES;
+ 	}
+@@ -72,12 +41,15 @@
+ 		fprintf(stderr, "Erreur : T invalide (threads <= 1024, tuile <= %d)\n", TUILE_MAX);
+ 		return 1;
+ 	}
++	mode_csv = (argc > 5 && 0 == strcmp(argv[5], "csv"));
+ 
+-	if (!charger_sequences(argv[1], argv[2], &X, &m, &Y, &n)) {
++	if (!generer_sequences(m, n, &X, &Y)) {
+ 		return 1;
+ 	}
+ 
+-	afficher_infos_gpu();
++	if (!mode_csv) {
++		afficher_infos_gpu();
++	}
+ 	VERIFIER_CUDA(cudaFree(0)); // initialisation du contexte CUDA avant la mesure
+ 
+ 	longueur = lcs_cuda(X, Y, m, n, methode, T, &S, &temps);
+@@ -87,19 +59,19 @@
+ 		return 1;
+ 	}
+ 
+-	printf("m = %d | n = %d | methode = %s | T = %d\n", m, n,
+-		(METHODE_DIAGONALES == methode) ? "diagonales" : "tuiles", T);
+-	printf("longueur LCS : %d\n", longueur);
+-	if (longueur <= AFFICHAGE_MAX) {
+-		printf("LCS : %s\n", S);
++	if (mode_csv) {
++		printf("%d,%.9f,%.9f,%.9f,%.9f,%s\n", longueur, temps.t_transfert, temps.t_phase1, temps.t_phase2, temps.t_total, S);
+ 	} else {
+-		printf("LCS : %.*s... (%d caracteres)\n", AFFICHAGE_MAX, S, longueur);
+-	}
+-	printf("transfert = %.6f s | phase 1 = %.6f s | phase 2 = %.6f s | total = %.6f s\n",
+-		temps.t_transfert, temps.t_phase1, temps.t_phase2, temps.t_total);
+-
+-	if (argc > 5) {
+-		ecrire_resultat(argv[5], longueur, S, &temps);
++		printf("m = %d | n = %d | methode = %s | T = %d\n", m, n,
++			(METHODE_DIAGONALES == methode) ? "diagonales" : "tuiles", T);
++		printf("longueur LCS : %d\n", longueur);
++		if (longueur <= AFFICHAGE_MAX) {
++			printf("LCS : %s\n", S);
++		} else {
++			printf("LCS : %.*s... (%d caracteres)\n", AFFICHAGE_MAX, S, longueur);
++		}
++		printf("transfert = %.6f s | phase 1 = %.6f s | phase 2 = %.6f s | total = %.6f s\n",
++			temps.t_transfert, temps.t_phase1, temps.t_phase2, temps.t_total);
+ 	}
+ 
+ 	free(X);
+diff -ruN a/CUDA/sequences.cu b/CUDA/sequences.cu
+--- a/CUDA/sequences.cu	2026-11-28 17:39:38.512300740 +0000
++++ b/CUDA/sequences.cu	2026-11-28 17:39:38.513759245 +0000
+@@ -1,47 +1,9 @@
+-#include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+-#include <ctype.h>
+ #include "sequences.cuh"
+ 
+-/*Lit une sequence dans un fichier texte*/
+-char *lire_sequence(const char *chemin, int *longueur) {
+-	FILE *f = fopen(chemin, "r");
+-	char *sequence;
+-	long taille_fichier;
+-	int c;
+-	int n = 0;
+-
+-	if (NULL == f) {
+-		perror(chemin);
+-		return NULL;
+-	}
+-
+-	fseek(f, 0, SEEK_END);
+-	taille_fichier = ftell(f);
+-	fseek(f, 0, SEEK_SET);
+-
+-	sequence = (char *)malloc((size_t)taille_fichier + 1);
+-	if (NULL == sequence) {
+-		fclose(f);
+-		return NULL;
+-	}
+-
+-	while ((c = fgetc(f)) != EOF) {
+-		if (!isspace(c)) {
+-			sequence[n] = (char)c;
+-			n++;
+-		}
+-	}
+-	sequence[n] = '\0';
+-
+-	fclose(f);
+-	*longueur = n;
+-	return sequence;
+-}
+-
+-/*Alloue une sequence aleatoire de "longueur" symboles*/
+-char *generer_sequence(int longueur) {
++/*Alloue une sequence de "longueur" symboles tires aleatoirement dans ALPHABET*/
++static char *generer_sequence(int longueur) {
+ 	char *sequence = (char *)malloc((size_t)longueur + 1);
+ 	int taille_alphabet = (int)strlen(ALPHABET);
+ 	int i;
+@@ -58,17 +20,11 @@
+ 	return sequence;
+ }
+ 
+-/*Renvoie 1 si la chaine ne contient que des chiffres, 0 sinon*/
+-int est_entier(const char *chaine) {
+-	int i;
++/*Genere X puis Y apres srand(GRAINE)*/
++int generer_sequences(int m, int n, char **X, char **Y) {
++	srand(GRAINE);
++	*X = generer_sequence(m);
++	*Y = generer_sequence(n);
+ 
+-	if ('\0' == chaine[0]) {
+-		return 0;
+-	}
+-	for (i = 0; chaine[i] != '\0'; i++) {
+-		if (!isdigit((unsigned char)chaine[i])) {
+-			return 0;
+-		}
+-	}
+-	return 1;
++	return (NULL != *X && NULL != *Y);
+ }
+diff -ruN a/CUDA/sequences.cuh b/CUDA/sequences.cuh
+--- a/CUDA/sequences.cuh	2026-11-28 17:39:38.519474502 +0000
++++ b/CUDA/sequences.cuh	2026-11-28 17:39:38.520908563 +0000
+@@ -2,15 +2,11 @@
+ #define SEQUENCES_CUH
+ 
+ #define ALPHABET "ACGT"
++#define GRAINE 42
+ 
+-/*Lit une sequence dans un fichier texte (les blancs et retours a la ligne sont ignores).
+-  La longueur lue est ecrite dans *longueur. Renvoie NULL en cas d'erreur.*/
+-char *lire_sequence(const char *chemin, int *longueur);
+-
+-/*Alloue une sequence de "longueur" symboles tires aleatoirement dans ALPHABET*/
+-char *generer_sequence(int longueur);
+-
+-/*Renvoie 1 si la chaine ne contient que des chiffres (argument = taille), 0 sinon*/
+-int est_entier(const char *chaine);
++/*Genere X (m symboles) puis Y (n symboles) tires aleatoirement dans ALPHABET, apres
++  srand(GRAINE) : le jeu de test regenere exactement les memes sequences pour verifier.
++  Renvoie 1 si les allocations ont reussi, 0 sinon.*/
++int generer_sequences(int m, int n, char **X, char **Y);
+ 
+ #endif /* SEQUENCES_CUH */
+diff -ruN a/MPI/main.c b/MPI/main.c
+--- a/MPI/main.c	2026-11-28 17:39:38.482048979 +0000
++++ b/MPI/main.c	2026-11-28 17:39:38.484617818 +0000
+@@ -1,58 +1,27 @@
+ #include <stdio.h>
+ #include <stdlib.h>
++#include <string.h>
+ #include <mpi.h>
+ #include "lcs_mpi.h"
+ #include "sequences.h"
+ 
+-/* Usage :
+-   mpirun -np P ./bin/lcs_mpi fichierX fichierY [hauteur_bloc] [fichier_resultat]
+-   mpirun -np P ./bin/lcs_mpi m n [hauteur_bloc] [fichier_resultat]   (sequences aleatoires)
+-   fichier_resultat (utilise par le jeu de test) :
+-     ligne 1 : longueur t_distribution t_phase1 t_phase2 t_total
+-     ligne 2 : la LCS */
++/* Usage : mpirun -np P ./lcs_mpi m n [hauteur_bloc] [csv]
++   - m, n         : longueurs des sequences X et Y, generees aleatoirement
++   - hauteur_bloc : nombre de lignes calculees entre deux envois au voisin (defaut : 64)
++   - csv          : n'affiche qu'une ligne (pour le jeu de test) :
++                    longueur,t_distribution,t_phase1,t_phase2,t_total,LCS */
+ 
+ #define HAUTEUR_BLOC_DEFAUT 64
+-#define GRAINE 42
+ #define AFFICHAGE_MAX 80
+ 
+-/*Charge X et Y depuis deux fichiers, ou les genere si les arguments sont des tailles*/
+-static int charger_sequences(const char *arg_X, const char *arg_Y, char **X, int *m, char **Y, int *n) {
+-	if (est_entier(arg_X) && est_entier(arg_Y)) {
+-		*m = atoi(arg_X);
+-		*n = atoi(arg_Y);
+-		srand(GRAINE);
+-		*X = generer_sequence(*m);
+-		*Y = generer_sequence(*n);
+-	} else {
+-		*X = lire_sequence(arg_X, m);
+-		*Y = lire_sequence(arg_Y, n);
+-	}
+-
+-	return (NULL != *X && NULL != *Y);
+-}
+-
+-/*Ecrit les temps et la LCS dans le fichier resultat lu par le jeu de test*/
+-static void ecrire_resultat(const char *chemin, int longueur, const char *S, const temps_mpi_t *temps) {
+-	FILE *f = fopen(chemin, "w");
+-
+-	if (NULL == f) {
+-		perror(chemin);
+-		return;
+-	}
+-
+-	fprintf(f, "%d %.9f %.9f %.9f %.9f\n", longueur, temps->t_distribution, temps->t_phase1, temps->t_phase2, temps->t_total);
+-	fprintf(f, "%s\n", S);
+-	fclose(f);
+-}
+-
+ int main(int argc, char *argv[]) {
+ 	int rang, taille;
+ 	char *X = NULL;
+ 	char *Y = NULL;
+ 	char *S = NULL;
+-	int m = 0;
+-	int n = 0;
++	int m, n;
+ 	int hauteur_bloc;
++	int mode_csv;
+ 	int ok = 1;
+ 	int longueur;
+ 	temps_mpi_t temps;
+@@ -63,20 +32,23 @@
+ 
+ 	if (argc < 3) {
+ 		if (MAITRE == rang) {
+-			fprintf(stderr, "Usage : mpirun -np P %s fichierX|m fichierY|n [hauteur_bloc] [fichier_resultat]\n", argv[0]);
++			fprintf(stderr, "Usage : mpirun -np P %s m n [hauteur_bloc] [csv]\n", argv[0]);
+ 		}
+ 		MPI_Finalize();
+ 		return 1;
+ 	}
+ 
++	m = atoi(argv[1]);
++	n = atoi(argv[2]);
+ 	hauteur_bloc = (argc > 3) ? atoi(argv[3]) : HAUTEUR_BLOC_DEFAUT;
+ 	if (hauteur_bloc < 1) {
+ 		hauteur_bloc = 1;
+ 	}
++	mode_csv = (argc > 4 && 0 == strcmp(argv[4], "csv"));
+ 
+-	/* ---------- Le maitre charge les sequences ---------- */
++	/* ---------- Le maitre genere les sequences ---------- */
+ 	if (MAITRE == rang) {
+-		ok = charger_sequences(argv[1], argv[2], &X, &m, &Y, &n);
++		ok = generer_sequences(m, n, &X, &Y);
+ 	}
+ 	MPI_Bcast(&ok, 1, MPI_INT, MAITRE, MPI_COMM_WORLD);
+ 	if (!ok) {
+@@ -89,18 +61,18 @@
+ 
+ 	/* ---------- Affichage ---------- */
+ 	if (MAITRE == rang && longueur >= 0) {
+-		printf("m = %d | n = %d | %d processus | hauteur de bloc = %d\n", m, n, taille, hauteur_bloc);
+-		printf("longueur LCS : %d\n", longueur);
+-		if (longueur <= AFFICHAGE_MAX) {
+-			printf("LCS : %s\n", S);
++		if (mode_csv) {
++			printf("%d,%.9f,%.9f,%.9f,%.9f,%s\n", longueur, temps.t_distribution, temps.t_phase1, temps.t_phase2, temps.t_total, S);
+ 		} else {
+-			printf("LCS : %.*s... (%d caracteres)\n", AFFICHAGE_MAX, S, longueur);
+-		}
+-		printf("distribution = %.6f s | phase 1 = %.6f s (dont calcul %.6f s) | phase 2 = %.6f s | total = %.6f s\n",
+-			temps.t_distribution, temps.t_phase1, temps.t_calcul_phase1, temps.t_phase2, temps.t_total);
+-
+-		if (argc > 4) {
+-			ecrire_resultat(argv[4], longueur, S, &temps);
++			printf("m = %d | n = %d | %d processus | hauteur de bloc = %d\n", m, n, taille, hauteur_bloc);
++			printf("longueur LCS : %d\n", longueur);
++			if (longueur <= AFFICHAGE_MAX) {
++				printf("LCS : %s\n", S);
++			} else {
++				printf("LCS : %.*s... (%d caracteres)\n", AFFICHAGE_MAX, S, longueur);
++			}
++			printf("distribution = %.6f s | phase 1 = %.6f s (dont calcul %.6f s) | phase 2 = %.6f s | total = %.6f s\n",
++				temps.t_distribution, temps.t_phase1, temps.t_calcul_phase1, temps.t_phase2, temps.t_total);
+ 		}
+ 	}
+ 
+diff -ruN a/MPI/sequences.c b/MPI/sequences.c
+--- a/MPI/sequences.c	2026-11-28 17:39:38.489782510 +0000
++++ b/MPI/sequences.c	2026-11-28 17:39:38.491256997 +0000
+@@ -1,47 +1,9 @@
+-#include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+-#include <ctype.h>
+ #include "sequences.h"
+ 
+-/*Lit une sequence dans un fichier texte*/
+-char *lire_sequence(const char *chemin, int *longueur) {
+-	FILE *f = fopen(chemin, "r");
+-	char *sequence;
+-	long taille_fichier;
+-	int c;
+-	int n = 0;
+-
+-	if (NULL == f) {
+-		perror(chemin);
+-		return NULL;
+-	}
+-
+-	fseek(f, 0, SEEK_END);
+-	taille_fichier = ftell(f);
+-	fseek(f, 0, SEEK_SET);
+-
+-	sequence = malloc((size_t)taille_fichier + 1);
+-	if (NULL == sequence) {
+-		fclose(f);
+-		return NULL;
+-	}
+-
+-	while ((c = fgetc(f)) != EOF) {
+-		if (!isspace(c)) {
+-			sequence[n] = (char)c;
+-			n++;
+-		}
+-	}
+-	sequence[n] = '\0';
+-
+-	fclose(f);
+-	*longueur = n;
+-	return sequence;
+-}
+-
+-/*Alloue une sequence aleatoire de "longueur" symboles*/
+-char *generer_sequence(int longueur) {
++/*Alloue une sequence de "longueur" symboles tires aleatoirement dans ALPHABET*/
++static char *generer_sequence(int longueur) {
+ 	char *sequence = malloc((size_t)longueur + 1);
+ 	int taille_alphabet = (int)strlen(ALPHABET);
+ 	int i;
+@@ -58,17 +20,11 @@
+ 	return sequence;
+ }
+ 
+-/*Renvoie 1 si la chaine ne contient que des chiffres, 0 sinon*/
+-int est_entier(const char *chaine) {
+-	int i;
++/*Genere X puis Y apres srand(GRAINE)*/
++int generer_sequences(int m, int n, char **X, char **Y) {
++	srand(GRAINE);
++	*X = generer_sequence(m);
++	*Y = generer_sequence(n);
+ 
+-	if ('\0' == chaine[0]) {
+-		return 0;
+-	}
+-	for (i = 0; chaine[i] != '\0'; i++) {
+-		if (!isdigit((unsigned char)chaine[i])) {
+-			return 0;
+-		}
+-	}
+-	return 1;
++	return (NULL != *X && NULL != *Y);
+ }
+diff -ruN a/MPI/sequences.h b/MPI/sequences.h
+--- a/MPI/sequences.h	2026-11-28 17:39:38.496427379 +0000
++++ b/MPI/sequences.h	2026-11-28 17:39:38.497774886 +0000
+@@ -2,15 +2,11 @@
+ #define SEQUENCES_H
+ 
+ #define ALPHABET "ACGT"
++#define GRAINE 42
+ 
+-/*Lit une sequence dans un fichier texte (les blancs et retours a la ligne sont ignores).
+-  La longueur lue est ecrite dans *longueur. Renvoie NULL en cas d'erreur.*/
+-char *lire_sequence(const char *chemin, int *longueur);
+-
+-/*Alloue une sequence de "longueur" symboles tires aleatoirement dans ALPHABET*/
+-char *generer_sequence(int longueur);
+-
+-/*Renvoie 1 si la chaine ne contient que des chiffres (argument = taille), 0 sinon*/
+-int est_entier(const char *chaine);
++/*Genere X (m symboles) puis Y (n symboles) tires aleatoirement dans ALPHABET, apres
++  srand(GRAINE) : le jeu de test regenere exactement les memes sequences pour verifier.
++  Renvoie 1 si les allocations ont reussi, 0 sinon.*/
++int generer_sequences(int m, int n, char **X, char **Y);
+ 
+ #endif /* SEQUENCES_H */
+diff -ruN a/jeu_de_test.c b/jeu_de_test.c
+--- a/jeu_de_test.c	2026-11-28 17:39:46.715915722 +0000
++++ b/jeu_de_test.c	2026-11-28 17:39:38.470795071 +0000
+@@ -53,66 +53,56 @@
+ 	return csv;
+ }
+ 
+-/* ---------- Donnees ---------- */
++/* ---------- Sequences ---------- */
+ 
+-/*Genere une sequence aleatoire de n symboles de ALPHABET et l'ecrit dans un fichier*/
+-static char *generer_et_ecrire(int n, const char *chemin) {
+-	char *sequence = malloc((size_t)n + 1);
++/*Meme generation que MPI/sequences.c et CUDA/sequences.cu : srand(GRAINE), X puis Y*/
++static char *generer_sequence(int longueur) {
++	char *sequence = malloc((size_t)longueur + 1);
+ 	int taille_alphabet = (int)strlen(ALPHABET);
+-	FILE *f;
+ 	int i;
+ 
+-	for (i = 0; i < n; i++) {
++	for (i = 0; i < longueur; i++) {
+ 		sequence[i] = ALPHABET[rand() % taille_alphabet];
+ 	}
+-	sequence[n] = '\0';
+-
+-	f = fopen(chemin, "w");
+-	if (NULL == f) {
+-		perror(chemin);
+-		free(sequence);
+-		return NULL;
+-	}
+-	fprintf(f, "%s\n", sequence);
+-	fclose(f);
++	sequence[longueur] = '\0';
+ 
+ 	return sequence;
+ }
+ 
+ /* ---------- Executions ---------- */
+ 
+-/*Lance une commande (MPI ou CUDA) puis lit FICHIER_RESULTAT. Renvoie 1 si tout s'est bien passe.*/
+-static int executer(const char *commande, resultat_t *r) {
+-	FILE *f;
++/*Lance une commande (MPI ou CUDA en mode csv) et lit sa ligne de resultat :
++  longueur,t_communication,t_phase1,t_phase2,t_total,LCS
++  La LCS est renvoyee dans *S (allouee). Renvoie 1 si tout s'est bien passe.*/
++static int executer(const char *commande, resultat_t *r, char **S) {
++	FILE *sortie = popen(commande, "r");
++	char *ligne = NULL;
++	size_t taille_ligne = 0;
++	ssize_t lus;
++	int debut_lcs = 0;
++	int ok = 0;
+ 
+-	remove(FICHIER_RESULTAT);
+-	if (0 != system(commande)) {
+-		fprintf(stderr, "Echec de la commande : %s\n", commande);
++	if (NULL == sortie) {
++		perror(commande);
+ 		return 0;
+ 	}
+ 
+-	f = fopen(FICHIER_RESULTAT, "r");
+-	if (NULL == f) {
+-		perror(FICHIER_RESULTAT);
+-		return 0;
++	lus = getline(&ligne, &taille_ligne, sortie);
++	if (lus > 0 && 5 == sscanf(ligne, "%d,%lf,%lf,%lf,%lf,%n", &r->longueur, &r->t_communication,
++			&r->t_phase1, &r->t_phase2, &r->t_total, &debut_lcs) && debut_lcs > 0) {
++		ligne[strcspn(ligne, "\n")] = '\0'; // retire le retour a la ligne
++		*S = strdup(&ligne[debut_lcs]);
++		ok = 1;
+ 	}
+ 
+-	if (5 != fscanf(f, "%d %lf %lf %lf %lf", &r->longueur, &r->t_communication, &r->t_phase1, &r->t_phase2, &r->t_total)) {
+-		fclose(f);
+-		return 0;
++	free(ligne);
++	if (0 != pclose(sortie)) {
++		ok = 0;
+ 	}
+-	fgetc(f); // fin de la premiere ligne
+-
+-	r->S = malloc((size_t)r->longueur + 1);
+-	if ((size_t)r->longueur != fread(r->S, 1, (size_t)r->longueur, f)) {
+-		free(r->S);
+-		fclose(f);
+-		return 0;
++	if (!ok) {
++		fprintf(stderr, "Echec de la commande : %s\n", commande);
+ 	}
+-	r->S[r->longueur] = '\0';
+-
+-	fclose(f);
+-	return 1;
++	return ok;
+ }
+ 
+ /*Execute NB_REPETITIONS fois la commande, garde la mediane de chaque temps et verifie
+@@ -123,20 +113,22 @@
+ 	int correct = 0;
+ 	int rep;
+ 
+-	memset(med, 0, sizeof(*med)); // en cas d'echec d'une execution, la ligne sortira en ECHEC avec des zeros
++	memset(med, 0, sizeof(*med)); // en cas d'echec, la ligne sortira en ECHEC avec des zeros
+ 
+ 	for (rep = 0; rep < NB_REPETITIONS; rep++) {
+ 		resultat_t r;
++		char *S = NULL;
+ 
+-		if (!executer(commande, &r)) {
++		if (!executer(commande, &r, &S)) {
+ 			return 0;
+ 		}
+ 
+ 		if (0 == rep) { // verification sur la premiere execution
+ 			correct = (r.longueur == longueur_ref)
+-				&& (0 == strcmp(r.S, S_ref))
+-				&& est_sous_sequence(r.S, r.longueur, X, n)
+-				&& est_sous_sequence(r.S, r.longueur, Y, n);
++				&& ((int)strlen(S) == r.longueur)
++				&& (0 == strcmp(S, S_ref))
++				&& est_sous_sequence(S, r.longueur, X, n)
++				&& est_sous_sequence(S, r.longueur, Y, n);
+ 			med->longueur = r.longueur;
+ 		}
+ 
+@@ -144,7 +136,7 @@
+ 		t_phase1[rep] = r.t_phase1;
+ 		t_phase2[rep] = r.t_phase2;
+ 		t_total[rep] = r.t_total;
+-		free(r.S);
++		free(S);
+ 	}
+ 
+ 	med->t_communication = mediane(t_communication, NB_REPETITIONS);
+@@ -157,7 +149,7 @@
+ /*Affiche une ligne de resultat et l'ajoute au CSV*/
+ static void enregistrer(FILE *csv, const char *version, const char *configuration, int n, int nprocs,
+ 	double t_seq, const resultat_t *r, int correct) {
+-	double acceleration = t_seq / r->t_total;
++	double acceleration = (r->t_total > 0.0) ? t_seq / r->t_total : 0.0;
+ 
+ 	printf("n = %6d | %-4s %-14s | seq = %9.5f s | par = %9.5f s (ph1 %.5f, ph2 %.5f, comm %.5f) | acc = %7.2fx | %s\n",
+ 		n, version, configuration, t_seq, r->t_total, r->t_phase1, r->t_phase2, r->t_communication,
+@@ -178,18 +170,14 @@
+ 	int longueur_ref = 0;
+ 	double essais_seq[NB_REPETITIONS];
+ 	double t_seq;
+-	char commande[512];
++	char commande[256];
+ 	char configuration[64];
+ 	int rep, p, c;
+ 
+-	/* ---------- Donnees aleatoires ---------- */
+-	X = generer_et_ecrire(n, FICHIER_X);
+-	Y = generer_et_ecrire(n, FICHIER_Y);
+-	if (NULL == X || NULL == Y) {
+-		free(X);
+-		free(Y);
+-		return;
+-	}
++	/* ---------- Memes sequences que MPI et CUDA ---------- */
++	srand(GRAINE);
++	X = generer_sequence(n);
++	Y = generer_sequence(n);
+ 
+ 	/* ---------- Reference sequentielle (code du sujet) ---------- */
+ 	S_ref = malloc((size_t)n + 1);
+@@ -217,8 +205,8 @@
+ 		resultat_t r;
+ 		int correct;
+ 
+-		snprintf(commande, sizeof(commande), "%s -np %d %s %s %s %d %s > /dev/null",
+-			MPIRUN, nprocs_a_tester[p], EXEC_MPI, FICHIER_X, FICHIER_Y, HAUTEUR_BLOC, FICHIER_RESULTAT);
++		snprintf(commande, sizeof(commande), "%s -np %d %s %d %d %d csv",
++			MPIRUN, nprocs_a_tester[p], EXEC_MPI, n, n, HAUTEUR_BLOC);
+ 		snprintf(configuration, sizeof(configuration), "P=%d", nprocs_a_tester[p]);
+ 
+ 		correct = executer_et_verifier(commande, X, Y, n, S_ref, longueur_ref, &r);
+@@ -234,8 +222,8 @@
+ 		resultat_t r;
+ 		int correct;
+ 
+-		snprintf(commande, sizeof(commande), "%s %s %s %s %d %s > /dev/null",
+-			EXEC_CUDA, FICHIER_X, FICHIER_Y, methodes_cuda[c], parametres_cuda[c], FICHIER_RESULTAT);
++		snprintf(commande, sizeof(commande), "%s %d %d %s %d csv",
++			EXEC_CUDA, n, n, methodes_cuda[c], parametres_cuda[c]);
+ 		snprintf(configuration, sizeof(configuration), "%s %d", methodes_cuda[c], parametres_cuda[c]);
+ 
+ 		correct = executer_et_verifier(commande, X, Y, n, S_ref, longueur_ref, &r);
+diff -ruN a/jeu_de_test.h b/jeu_de_test.h
+--- a/jeu_de_test.h	2026-11-28 17:39:38.476121462 +0000
++++ b/jeu_de_test.h	2026-11-28 17:39:38.477581996 +0000
+@@ -3,40 +3,36 @@
+ 
+ #include <stdio.h>
+ 
++/* Memes alphabet et graine que MPI/sequences.h et CUDA/sequences.cuh : le jeu de test
++   regenere exactement les sequences calculees par les deux versions */
+ #define ALPHABET "ACGT"
+ #define GRAINE 42
+ 
+ /* Nombre d'executions par configuration, on garde la mediane */
+ #define NB_REPETITIONS 3
+ 
+-#define DOSSIER_DONNEES "donnees"
+-#define FICHIER_X "donnees/X.txt"
+-#define FICHIER_Y "donnees/Y.txt"
+-#define FICHIER_RESULTAT "donnees/resultat.txt"
+ #define FICHIER_CSV "resultats.csv"
+-
+-#define EXEC_MPI "MPI/bin/lcs_mpi"
+-#define EXEC_CUDA "CUDA/bin/lcs_cuda"
++#define EXEC_MPI "MPI/lcs_mpi"
++#define EXEC_CUDA "CUDA/lcs_cuda"
+ #define MPIRUN "mpirun --oversubscribe"
+ #define HAUTEUR_BLOC 64
+ 
+-/* Resultat d'une execution MPI ou CUDA (lu dans FICHIER_RESULTAT) */
++/* Resultat d'une execution MPI ou CUDA (lu sur sa sortie en mode csv) */
+ typedef struct {
+ 	int longueur;
+ 	double t_communication; // MPI : distribution de X et Y | CUDA : transfert vers le GPU
+ 	double t_phase1;
+ 	double t_phase2;
+ 	double t_total;
+-	char *S;                // LCS trouvee
+ } resultat_t;
+ 
+ /*Ouvre le CSV (ecrase) et ecrit la ligne d'en-tete. Renvoie NULL en cas d'erreur.*/
+ FILE *ouvrir_csv(void);
+ 
+-/*Teste une taille n : genere X et Y aleatoires (n symboles), calcule la reference
+-  sequentielle, execute MPI pour chaque nombre de processus et CUDA pour chaque methode,
+-  verifie chaque LCS contre la reference, affiche une ligne par configuration et
+-  l'ajoute au CSV. Les compteurs de tests et d'echecs sont mis a jour.*/
++/*Teste une taille n : regenere X et Y (n symboles), calcule la reference sequentielle,
++  execute MPI pour chaque nombre de processus et CUDA pour chaque methode, verifie
++  chaque LCS contre la reference, affiche une ligne par configuration et l'ajoute
++  au CSV. Les compteurs de tests et d'echecs sont mis a jour.*/
+ void tester_taille(int n, FILE *csv, int *nb_tests, int *nb_echecs);
+ 
+ #endif /* JEU_DE_TEST_H */
+diff -ruN a/main.c b/main.c
+--- a/main.c	2026-11-28 17:39:38.522459939 +0000
++++ b/main.c	2026-11-28 17:39:38.463802178 +0000
+@@ -1,6 +1,5 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+-#include <sys/stat.h>
+ #include "jeu_de_test.h"
+ 
+ int main(void) {
+@@ -12,8 +11,6 @@
+ 	int t;
+ 
+ 	setvbuf(stdout, NULL, _IONBF, 0);
+-	srand(GRAINE);
+-	mkdir(DOSSIER_DONNEES, 0755); // sequences generees et resultats intermediaires
+ 
+ 	csv = ouvrir_csv();
+ 	if (NULL == csv) {
